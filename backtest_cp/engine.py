@@ -52,12 +52,12 @@ class BacktestEngine:
         self.equity_curve = pd.Series(dtype=float)
         self.pending_exit = {}
         self.output_data = None
-
+ 
         # slippage params
         self.slippage_pct = float(slippage_pct)
         self.slippage_ticks = float(slippage_ticks)
         self.tick_size = float(tick_size)
-
+ 
         # leverage (new)
         self.leverage = float(leverage) if leverage and leverage > 0 else 1.0
  
@@ -110,6 +110,18 @@ class BacktestEngine:
     def _execute_order(self, current_bar, order, exit_type='TRADE'):
         # get execution price robustly
         execution_price = _to_float_safe(_val(current_bar, 'Close', 'close'))
+ 
+        # # >>> THÊM LOGIC CẮT LỖ/CHỐT LỜI CẢI TIẾN
+        if exit_type == 'SL':
+            # Lấy giá SL từ pending_exit, nếu không có thì dùng giá Close (fallback)
+            sl_price = self.pending_exit.get('sl', execution_price)
+            execution_price = sl_price
+        elif exit_type == 'TP':
+            # Lấy giá TP từ pending_exit, nếu không có thì dùng giá Close (fallback)
+            tp_price = self.pending_exit.get('tp', execution_price)
+            execution_price = tp_price
+        # <<< KẾT THÚC LOGIC CẢI TIẾN
+           
         if np.isnan(execution_price):
             return
  
@@ -148,16 +160,21 @@ class BacktestEngine:
                 #     # write entry + tp/sl
                 # realized pnl for logging: entry - exit
                 pnl = (self.entry_price - execution_price) * size_to_close
-                pnl_net = pnl - fee
+                pnl = round(pnl , 2)
+                pnl_net = round(pnl - fee, 2)
+                entry_value = self.entry_price * size_to_close # Giá trị vị thế khi mở
+                roi_pct = (pnl / entry_value * 100) if entry_value != 0 else np.nan
                 self.trades.append({
                 'entry_time': self.entry_timestamp,            # timestamp entry
                 'exit_time': current_bar.name,                 # timestamp exit
                 'entry_price': float(self.entry_price),
                 'exit_price': float(execution_price),
                 'size': float(size_to_close),
+                'roi %': float(round(roi_pct, 2)) if not np.isnan(roi_pct) else np.nan, # <<< ĐÃ SỬA
                 'gross_pnl': float(pnl),                       # BEFORE fee
                 'net_pnl': float(pnl_net),                     # AFTER fee
-                'direction': 'LONG' if self.position > 0 else 'SHORT'
+                'direction': 'LONG' if self.position > 0 else 'SHORT',
+                'exit_type': exit_type # <<< ĐÃ THÊM DÒNG NÀY
                 })
                 # reduce position magnitude
                 self.position += size_to_close
@@ -189,16 +206,21 @@ class BacktestEngine:
                 # receive proceeds from selling
                 self.capital += size_to_close * execution_price - fee
                 pnl = (execution_price - self.entry_price) * size_to_close
-                pnl_net = pnl - fee
+                pnl = round(pnl , 2)
+                pnl_net = round(pnl - fee, 2)
+                entry_value = self.entry_price * size_to_close # Giá trị vị thế khi mở
+                roi_pct = (pnl / entry_value * 100) if entry_value != 0 else np.nan
                 self.trades.append({
                 'entry_time': self.entry_timestamp,            # timestamp entry
                 'exit_time': current_bar.name,                 # timestamp exit
                 'entry_price': float(self.entry_price),
                 'exit_price': float(execution_price),
                 'size': float(size_to_close),
+                'roi %': float(round(roi_pct, 2)) if not np.isnan(roi_pct) else np.nan, # <<< ĐÃ SỬA
                 'gross_pnl': float(pnl),                       # BEFORE fee
                 'net_pnl': float(pnl_net),                     # AFTER fee
-                'direction': 'LONG' if self.position > 0 else 'SHORT'
+                'direction': 'LONG' if self.position > 0 else 'SHORT',
+                'exit_type': exit_type # <<< ĐÃ THÊM DÒNG NÀY
                 })
                 self.position -= size_to_close
                 if abs(self.position) < 1e-9:
@@ -252,6 +274,7 @@ class BacktestEngine:
  
             try:
                 current_equity = float(self.capital) + position_value
+                current_equity = round(current_equity, 2)
             except Exception:
                 current_equity = np.nan
  
@@ -261,7 +284,7 @@ class BacktestEngine:
                 self.output_data.at[index, 'equity'] = current_equity
             except Exception:
                 pass
- 
+           
             side_label = np.nan
             if self.position > 0:
                 side_label = 'Long'
@@ -312,6 +335,16 @@ class BacktestEngine:
             if (not position_closed_by_exit) and (signals_df is not None) and (index in signals_df.index):
                 sig = signals_df.loc[index]
                 side_sig = sig.get('signal_side', np.nan)
+ 
+                is_current_long = self.position > 1e-9  # Đang Long
+                is_current_short = self.position < -1e-9 # Đang Short
+                is_signal_buy = str(side_sig).upper() == 'BUY'
+                is_signal_sell = str(side_sig).upper() == 'SELL'
+ 
+                if (is_current_long and is_signal_buy) or (is_current_short and is_signal_sell):
+                    # Nếu bạn muốn bỏ qua TẤT CẢ lệnh nếu đã có vị thế, dùng: if self.position != 0:
+                    continue
+           
                 if pd.notna(side_sig):
                     # determine execution size: prefer risk_pct -> size -> fallback 1.0
                     size = None
@@ -349,21 +382,21 @@ class BacktestEngine:
                                     else:
                                         desired_exposure = self.capital * float(risk_pct_raw) * self.leverage
                                     size = desired_exposure / exec_price_est
-
+ 
                         except Exception:
                             size = None
-
+ 
                     # If risk_pct path didn't give a size, try explicit size field
                     if size is None and (not pd.isna(sig.get('size'))):
                         try:
                             size = float(sig.get('size'))
                         except Exception:
                             size = None
-
+ 
                     # Fallback default size
                     if size is None:
                         size = 1.0
-
+ 
                     # Enforce a maximum size based on available capital * leverage (safety cap)
                     try:
                         max_exposure = (self.capital * self.leverage)
@@ -372,8 +405,14 @@ class BacktestEngine:
                             size = max_size
                     except Exception:
                         pass
-
- 
+                    # 🚨 BƯỚC LÀM TRÒN: Làm tròn giá trị 'size' tới 4 chữ số thập phân 🚨
+                    if size is not None:
+                        size = round(size, 4)
+   
+                    # Đảm bảo size > 0 trước khi tạo order (an toàn)
+                    if size is not None and size <= 0:
+                        continue # Bỏ qua order nếu size không hợp lệ
+   
                     order = {'side': str(side_sig).upper(), 'size': size}
  
                     # set pending TP/SL from signal if provided (override engine defaults)
@@ -405,13 +444,10 @@ class BacktestEngine:
  
         # convert trades log to DataFrame and return
         try:
-            cols = ['entry_time','exit_time','entry_price','exit_price','size','gross_pnl','net_pnl','direction']
+            cols = ['entry_time','exit_time','entry_price','exit_price','size','roi %','gross_pnl','net_pnl','direction']
             trades_df = trades_df.reindex(columns=cols)
             trades_df = pd.DataFrame(self.trades)
         except Exception:
             trades_df = pd.DataFrame(self.trades if isinstance(self.trades, list) else [])
         return self.output_data, trades_df
- 
- 
- 
  

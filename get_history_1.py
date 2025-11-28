@@ -178,5 +178,5 @@ def fetch_futures_data_by_range(
 
     return {"ok": True, "rows": len(df), "filename": filename, "df": df}
 
-res = fetch_futures_data_by_range("BTCUSDT", "1m", "2025-01-01", "2025-03-01", client=None, futures=True)
+res = fetch_futures_data_by_range("BTCUSDT", "1m", "2025-10-01", "2025-11-27", client=None, futures=True)
 print(res["filename"], res["rows"])

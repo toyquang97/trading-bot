@@ -8,7 +8,7 @@ import warnings
 warnings.filterwarnings("ignore", category=FutureWarning, message=".*deprecated.*")
  
 # load your 1m data here. Example fallback if file not found:
-file_path = 'BTCUSDT_1m_20250101_0000_to_20250301_2359.csv'
+file_path = 'BTCUSDT_1m_20251001_0000_to_20251127_2359.csv'
  
 df_1m_raw = pd.read_csv(file_path)
 # expected columns: Open, High, Low, Close, Volume, Time or index timestamp
@@ -39,7 +39,7 @@ if __name__ == '__main__':
     INITIAL_CAPITAL = 1000.0
     TAKER_FEE = 0.00075
     SIZE = 1
-    LEVERAGE = 20
+    LEVERAGE = 2
     # 1) Generate signals from strategy (strategy does resample + indicators internally)
     mtf_list = ['15T', '1H', '4H']
     signals = generate_signals(df_1m, mtf_timeframes=mtf_list, base_risk_pct=SIZE)
@@ -130,5 +130,4 @@ if __name__ == '__main__':
         except Exception:
             pass
     # ----- END: robust export block -----
- 
  

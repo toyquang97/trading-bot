@@ -16,46 +16,56 @@ from scipy.signal import find_peaks
 import numpy as np
 
 
+# replace existing resample_data with this robust version
+def _normalize_tf_alias(tf: str) -> str:
+    tf = str(tf)
+    # common conversions 'T'->'min', 'H'->'h'
+    if tf.endswith('T'):
+        return tf[:-1] + 'min'
+    if tf.endswith('H'):
+        return tf[:-1] + 'h'
+    return tf
+ 
 def resample_data(data_1m: pd.DataFrame, timeframe: str) -> pd.DataFrame:
     """
-    Chuyển đổi dữ liệu từ khung thời gian nhỏ hơn sang khung thời gian lớn hơn
-    (Resampling OHLCV và các cột khối lượng Taker).
+    Robust resample:
+    - Normalize timeframe aliases ('15T' -> '15min', '1H' -> '1h')
+    - Use label='left', closed='left' for deterministic bin alignment
+    - Ensure index is datetime (and floored to minute)
     """
-   
-    # 1. Xử lý Index và kiểu dữ liệu (KHẮC PHỤC LỖI)
-   
-    # Đổi tên cột trong DataFrame sang chữ thường để dễ xử lý
-    data_1m.columns = data_1m.columns.str.lower()
-   
-    # Nếu 'open_time' là cột (chưa phải index), chuyển đổi và đặt làm index
-    if 'open_time' in data_1m.columns:
-        # Chuyển đổi kiểu dữ liệu sang datetime (Rất quan trọng)
-        data_1m['open_time'] = pd.to_datetime(data_1m['open_time'])
-        # Đặt cột 'open_time' làm index
-        data_1m.set_index('open_time', inplace=True)
+    # prepare data
+    data = data_1m.copy()
+    data.columns = data.columns.str.lower()
  
-    # Nếu index chưa phải DatetimeIndex, báo lỗi (chỉ để an toàn)
-    if not isinstance(data_1m.index, pd.DatetimeIndex):
-         raise TypeError("Index sau khi xử lý không phải DatetimeIndex. Kiểm tra lại dữ liệu.")
-   
-    # 2. Định nghĩa Quy tắc Aggregation
+    # If time column present, set index
+    if 'open_time' in data.columns:
+        data['open_time'] = pd.to_datetime(data['open_time'])
+        data.set_index('open_time', inplace=True)
+ 
+    if not isinstance(data.index, pd.DatetimeIndex):
+        raise TypeError("Index must be DatetimeIndex for resampling")
+ 
+    # floor to 1 minute to avoid sub-minute offsets
+    data.index = data.index.floor('1min')
+ 
+    # normalize timeframe alias
+    tf = _normalize_tf_alias(timeframe)
+ 
     ohlcv_agg = {
-        'open': 'first',  
-        'high': 'max',    
-        'low': 'min',      
-        'close': 'last',  
-        'num_trades': 'sum',
-        'taker_buy_base': 'sum',    
-        'taker_buy_quote': 'sum',  
+        'open': 'first',
+        'high': 'max',
+        'low': 'min',
+        'close': 'last',
+        'volume': 'sum',
     }
-   
-    # Lọc lại agg_dict chỉ giữ các cột có tồn tại trong DataFrame
-    valid_agg = {col: func for col, func in ohlcv_agg.items() if col in data_1m.columns}
+    valid_agg = {col: func for col, func in ohlcv_agg.items() if col in data.columns}
  
-    # 3. Thực hiện Resampling
-    resampled_df = data_1m.resample(timeframe).agg(valid_agg)
-   
-    # 4. Loại bỏ các hàng NaN và trả về
-    resampled_df.dropna(inplace=True)
-   
-    return resampled_df
+    # use explicit label/closed so bins align predictably
+    resampled = data.resample(tf, label='left', closed='left').agg(valid_agg)
+ 
+    # drop rows with NaN (incomplete candles)
+    resampled = resampled.dropna()
+ 
+    # restore capitalization to match remainder code (Open/High/...)
+    resampled.columns = [c.capitalize() for c in resampled.columns]
+    return resampled
