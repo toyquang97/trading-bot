@@ -1,0 +1,22 @@
+# core
+python-binance
+python-dotenv
+pandas
+numpy
+pytz
+matplotlib
+plotly
+altair
+scipy
+ta-lib
+polars
+# optional / analytics
+scikit-learn
+statsmodels
+torch
+# dev / utils
+ipython
+jupyterlab
+black
+
+# note: TA-Lib is handled separately on Windows (see instructions)

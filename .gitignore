@@ -1,0 +1,30 @@
+# Virtual env
+.venv*
+venv/
+env/
+ENV/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Data folders
+data/
+collect-data/
+quant/
+numba/
+
+# Excel, CSV data
+*.csv
+*.xlsx
+
+# Logs or temp files
+*.log
+
+# IDE crap
+.vscode/
+.idea/
+
+# Environment info
+.env
+desktop.ini
