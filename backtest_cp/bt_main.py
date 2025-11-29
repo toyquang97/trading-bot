@@ -44,8 +44,12 @@ if __name__ == '__main__':
     mtf_list = ['15T', '1H', '4H']
     signals = generate_signals(df_1m, mtf_timeframes=mtf_list, base_risk_pct=SIZE)
     # Optional: inspect non-empty signals
+    num_signals = signals['signal_side'].count()
     print(f"Signals generated: {signals['signal_side'].count()} non-null entries")
- 
+    if num_signals == 0:
+        print("❌ Không có tín hiệu nào → Dừng backtest.")
+        exit()   # hoặc return nếu chạy trong hàm
+
     # 2) Run engine with slippage and risk_pct support
     engine = BacktestEngine(initial_capital=INITIAL_CAPITAL, fee_rate=TAKER_FEE,
                             slippage_pct=0.0002, slippage_ticks=0.0,
