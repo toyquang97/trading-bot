@@ -4,7 +4,7 @@ from strategy import generate_signals
 import numpy as np
 
 # load 1m file (cái file m upload)
-path = 'BTCUSDT_1m_20250101_0000_to_20250301_2359.csv'
+path = 'BTCUSDT_1m_20251001_0000_to_20251127_2359.csv'
 df = pd.read_csv(path)
 # try to set index column: detect Time/open_time or first col
 if 'Time' in df.columns:
@@ -21,7 +21,7 @@ else:
 # normalize colnames to be safe
 df.columns = [c.capitalize() for c in df.columns]
 
-signals = generate_signals(df, mtf_timeframes=['15T','1H','4H'], base_risk_pct=0.01)
+signals = generate_signals(df, base_risk_pct=0.01)
 print("Total signals (non-null signal_side):", signals['signal_side'].count())
 print("Signals timestamps and rows:")
 print(signals[signals['signal_side'].notna()].head(20))

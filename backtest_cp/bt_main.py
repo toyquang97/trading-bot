@@ -5,6 +5,7 @@ from evaluation import calculate_performance_metrics
 import pandas as pd
 import numpy as np
 import warnings
+from init import clean_ohlc
 warnings.filterwarnings("ignore", category=FutureWarning, message=".*deprecated.*")
  
 # load your 1m data here. Example fallback if file not found:
@@ -12,22 +13,7 @@ file_path = 'BTCUSDT_1m_20251001_0000_to_20251127_2359.csv'
  
 df_1m_raw = pd.read_csv(file_path)
 # expected columns: Open, High, Low, Close, Volume, Time or index timestamp
-if 'Time' in df_1m_raw.columns:
-    df_1m_raw['Time'] = pd.to_datetime(df_1m_raw['Time'])
-    df_1m = df_1m_raw.set_index('Time').copy()
-elif 'open_time' in df_1m_raw.columns:
-    df_1m_raw['open_time'] = pd.to_datetime(df_1m_raw['open_time'])
-    df_1m = df_1m_raw.set_index('open_time').copy()
-else:
-    # assume first column is timestamp
-    df_1m_raw.iloc[:,0] = pd.to_datetime(df_1m_raw.iloc[:,0])
-    df_1m = df_1m_raw.set_index(df_1m_raw.columns[0]).copy()
- 
- 
-# ngay sau khi df_1m được tạo/đọc
-df_1m.columns = [c.capitalize() for c in df_1m.columns]
-df_1m = df_1m.sort_index()
-df_1m.index = df_1m.index.floor('1min')
+df_1m = clean_ohlc(df_1m_raw, timeframe='1min')
 # timezone handling (choose one)
 if df_1m.index.tz is None:
     df_1m = df_1m.tz_localize('Asia/Ho_Chi_Minh')
@@ -41,8 +27,7 @@ if __name__ == '__main__':
     SIZE = 1
     LEVERAGE = 2
     # 1) Generate signals from strategy (strategy does resample + indicators internally)
-    mtf_list = ['15T', '1H', '4H']
-    signals = generate_signals(df_1m, mtf_timeframes=mtf_list, base_risk_pct=SIZE)
+    signals = generate_signals(df_1m, base_risk_pct=SIZE)
     # Optional: inspect non-empty signals
     num_signals = signals['signal_side'].count()
     print(f"Signals generated: {signals['signal_side'].count()} non-null entries")
