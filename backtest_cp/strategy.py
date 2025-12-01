@@ -2,7 +2,7 @@ import os, importlib, pkgutil
 import pandas as pd
 import numpy as np
 from init import *
-from strategies.m15_rsi import generate as strategy_generate
+from strategies.boll_vol import generate as strategy_generate
 
 
 

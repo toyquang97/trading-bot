@@ -19,6 +19,24 @@ from datetime import timedelta
 from typing import List
 from typing import Optional
 from pandas.tseries.frequencies import to_offset
+from pathlib import Path
+
+def get_data_path(fname: str) -> Path:
+    # find data dir relative to this file
+    this_file = Path(__file__).resolve()
+    for parent in this_file.parents[:6]:
+        cand = parent / "data"
+        if cand.is_dir():
+            p = cand / fname
+            if p.is_file():
+                return p.resolve()
+            # if not file but dir exists return dir for caller to inspect
+            return cand.resolve()
+    # fallback cwd
+    if (Path.cwd() / "data").is_dir():
+        return (Path.cwd() / "data" / fname).resolve()
+    raise FileNotFoundError(f"Could not find '{fname}' in any data directories.")
+
 
 def clean_ohlc(df_raw: pd.DataFrame, timeframe: str = '1min') -> pd.DataFrame:
     """

@@ -5,15 +5,19 @@ from evaluation import calculate_performance_metrics
 import pandas as pd
 import numpy as np
 import warnings
-from init import clean_ohlc
+from init import clean_ohlc, get_data_path
+import os
+from pathlib import Path
+
 warnings.filterwarnings("ignore", category=FutureWarning, message=".*deprecated.*")
  
 # load your 1m data here. Example fallback if file not found:
-file_path = 'BTCUSDT_1m_20251001_0000_to_20251127_2359.csv'
- 
+file_path = get_data_path("BTCUSDT_1m_20251001_0000_to_20251127_2359.csv")
+
 df_1m_raw = pd.read_csv(file_path)
 # expected columns: Open, High, Low, Close, Volume, Time or index timestamp
 df_1m = clean_ohlc(df_1m_raw, timeframe='1min')
+
 # timezone handling (choose one)
 if df_1m.index.tz is None:
     df_1m = df_1m.tz_localize('Asia/Ho_Chi_Minh')
@@ -103,12 +107,16 @@ if __name__ == '__main__':
             rename_map['position_side'] = 'side'
         df_output.rename(columns=rename_map, inplace=True)
  
-        # Export CSVs
-        df_output.to_csv('backtest_output_detailed_mtf.csv')
-        trades_df.to_csv('backtest_trades_summary_mtf.csv', index=False)
-        print("✅ Xuất file output thành công.")
-        print("DEBUG: Xuất các cột:", df_output.columns.tolist())
-        print("DEBUG: Xuất các cột:", trades_df.columns.tolist())
+
+        # Tên folder lưu file
+        out_dir = "backtest_output"
+
+        # Tạo folder nếu chưa có
+        os.makedirs(out_dir, exist_ok=True)
+
+        # Xuất CSVs vào folder
+        df_output.to_csv(f"{out_dir}/backtest_output_detailed_mtf.csv")
+        trades_df.to_csv(f"{out_dir}/backtest_trades_summary_mtf.csv", index=False)
  
     except Exception as e:
         print(f"❌ Lỗi khi xuất file: {e}")
