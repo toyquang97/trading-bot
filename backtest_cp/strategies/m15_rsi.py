@@ -8,7 +8,7 @@ import talib
 # strategies/m15_rsi.py
 
 
-file_path = 'BTCUSDT_15m_20251001_0000_to_20251127_2359.csv'
+file_path = get_data_path("BTCUSDT_15m_20251001_0000_to_20251127_2359.csv")
  
 
 def generate(df_base: pd.DataFrame,
@@ -69,6 +69,11 @@ def generate(df_base: pd.DataFrame,
 
         signals.at[entry_ts, 'risk_pct'] = base_risk_pct
         signals = signals[signals['signal_side'].notna()]
-        signals.to_csv('debug_m15_rsi_signals.csv')
+
+        out_dir = "strategies/debug_output"
+            # Tạo folder nếu chưa có
+        os.makedirs(out_dir, exist_ok=True)
+        signals.to_csv(f"{out_dir}/debug_boll_rsi15_signals.csv")
+
     return signals
 
