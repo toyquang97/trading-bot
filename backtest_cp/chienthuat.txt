@@ -1,0 +1,90 @@
+Chiến thuật 1: Multi-TF Trend + Volume + EMA Cross (Winrate cao, ít trade)
+
+Ý tưởng:
+Chỉ trade theo xu hướng mạnh đã được xác nhận ở các khung lớn → các lệnh M15 rất sạch và R:R cao.
+
+Logic
+
+Trend filter
+
+Daily → EMA50 > EMA200 → Uptrend
+
+H4 → EMA50 > EMA200 → Uptrend
+
+H1 → EMA50 > EMA200 → Uptrend
+→ Nếu cả 3 cùng hướng → xác nhận.
+
+Volume filter
+
+Volume H1 > MA(20) volume → thị trường đang active, ít quét.
+
+Entry
+
+M15: EMA7 cắt EMA99 từ dưới lên (BUY).
+
+RSI M15 35–55 (không quá overbought).
+
+Exit
+
+TP = 1.2×ATR(14,M15)
+
+SL = đáy gần nhất (swing low)
+
+Ưu điểm: Winrate cao, drawdown thấp.
+Nhược: Ít lệnh, nhưng chính vì vậy mới “chắc ăn”.
+
+🧠 Chiến thuật 2: Fade Fake-Breakout + Volume Divergence (Ăn các trap cực đã)
+
+Ý tưởng:
+Thị trường hay quét fake-break, đặc biệt khi volume không xác nhận. Chiến này rất sát thực tế.
+
+Logic
+
+Xác định vùng key level H1 (đỉnh/đáy hoặc vùng sideway).
+
+Giá phá qua vùng đó nhưng volume breakout < volume trung bình (MA20) → nghi ngờ fake.
+
+RSI M15 phân kỳ → càng chắc.
+
+Vào lệnh ngược hướng breakout:
+
+Fake break lên → SELL
+
+Fake break xuống → BUY
+
+TP tại midpoint của range, SL ngay sau wick breakout.
+
+Ưu điểm:
+
+Tỷ lệ RR cao (1:2 – 1:3).
+
+Bắt được các cú trap market maker.
+
+Nhược:
+
+Winrate không quá cao nhưng lãi cuối cùng lớn vì RR cao.
+
+🧠 Chiến thuật 3: Trend-Pullback + Liquidity Grab (Dễ code, winrate ổn định)
+
+Ý tưởng:
+Trade theo xu hướng → đợi giá kéo ngược lấy thanh khoản → vào lại đúng điểm mạnh.
+
+Logic
+
+Trend filter (Daily/H4/H1 giống chiến thuật 1).
+
+Chờ M15 hồi về EMA20–EMA50 hoặc vùng FVG.
+
+Giá chọc nhẹ xuống dưới đáy gần nhất (liquidity grab) nhưng đóng nến lại phía trên.
+
+Volume hồi < Volume của xu hướng chính.
+
+BUY theo trend.
+
+Ưu điểm:
+
+Rất hiệu quả với BTC/ETH.
+
+Dễ implement vào bot.
+
+Winrate trung bình cao (55–65%) nhưng drawdown nhỏ.
